@@ -46,3 +46,17 @@ export type MapGrid = {
   generatedAt: string;
   notes: string[];
 };
+
+/** A concrete recently-sold block, offered as a "pick" once an area is clicked. */
+export type MapPick = {
+  address: string;
+  block: string | null;
+  street: string | null;
+  lat: number;
+  lng: number;
+  price: number;
+  month: string;
+  flatType: string;
+  floorAreaSqm: number;
+  storeyRange: string;
+};

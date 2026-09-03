@@ -9,14 +9,27 @@ import {
   PILLAR_ORDER,
   type GridCellTuple,
   type MapGrid,
+  type MapPick,
 } from "@/lib/mapTypes";
 import { BANDS, bandThresholds, ramp } from "@/lib/mapPalette";
-import { money, titleCase } from "@/lib/format";
+import { money, monthLabel, titleCase } from "@/lib/format";
 import { useWeights } from "@/lib/store";
 import { CATEGORY_LABELS, PILLARS, type PillarId, type Weights } from "@/lib/types";
 import { WeightsPanel } from "./WeightsPanel";
 import { ScoreBar } from "./Score";
 import type { HoverInfo, MapCell } from "./FitMap";
+
+/** Same query contract as `SearchBox`'s address results, built from a pick instead. */
+function pickHref(pick: MapPick): string {
+  const p = new URLSearchParams({
+    lat: String(pick.lat),
+    lng: String(pick.lng),
+    address: pick.address,
+  });
+  if (pick.block) p.set("block", pick.block);
+  if (pick.street) p.set("street", pick.street);
+  return `/property?${p.toString()}`;
+}
 
 const FitMap = dynamic(() => import("./FitMap").then((m) => m.FitMap), {
   ssr: false,
@@ -46,6 +59,11 @@ export function MapClient() {
   const [flatType, setFlatType] = useState("4 ROOM");
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [selected, setSelected] = useState<MapCell | null>(null);
+  const [picks, setPicks] = useState<{ key: string; items: MapPick[]; error: string | null }>({
+    key: "",
+    items: [],
+    error: null,
+  });
 
   // One piece of state keyed by the request it answers. `loading` is then
   // derived rather than toggled, so the effect never writes state synchronously.
@@ -133,6 +151,36 @@ export function MapClient() {
       fit: Math.round(selected.fit),
     };
   }, [grid, selected]);
+
+  // Clicking an area should immediately answer "so what's actually here?" —
+  // a few real blocks that have sold recently, not just a score.
+  const pickKey = selectedDetail?.town ? `${selectedDetail.town}:${flatType}` : null;
+  const picksLoading = pickKey != null && picks.key !== pickKey;
+  const picksItems = pickKey != null && picks.key === pickKey ? picks.items : [];
+  const picksError = pickKey != null && picks.key === pickKey ? picks.error : null;
+
+  useEffect(() => {
+    const town = selectedDetail?.town;
+    if (!town) return;
+    const key = `${town}:${flatType}`;
+    let cancelled = false;
+    fetch(`/api/map/picks?town=${encodeURIComponent(town)}&flatType=${encodeURIComponent(flatType)}`)
+      .then(async (r) => {
+        const body = await r.json();
+        if (cancelled) return;
+        setPicks({
+          key,
+          items: body.picks ?? [],
+          error: r.ok ? null : (body.error ?? "Could not load recent sales."),
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setPicks({ key, items: [], error: "Could not reach the server." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDetail?.town, flatType]);
 
   const palette = ramp(false);
 
@@ -269,9 +317,13 @@ export function MapClient() {
                 </li>
               ))}
             </ul>
-            <Link href="/" className="btn mt-4 w-full">
-              Search blocks in this area
-            </Link>
+            <PicksList
+              town={selectedDetail.town}
+              flatType={flatType}
+              loading={picksLoading}
+              items={picksItems}
+              error={picksError}
+            />
           </section>
         ) : (
           townRanking.length > 0 && (
@@ -316,6 +368,59 @@ export function MapClient() {
 
         {ready && <WeightsPanel weights={weights} onChange={setWeights} onReset={reset} />}
       </div>
+    </div>
+  );
+}
+
+function PicksList({
+  town,
+  flatType,
+  loading,
+  items,
+  error,
+}: {
+  town: string | null;
+  flatType: string;
+  loading: boolean;
+  items: MapPick[];
+  error: string | null;
+}) {
+  return (
+    <div className="mt-4 border-t border-[var(--border)] pt-3">
+      <h3 className="text-xs font-semibold">
+        Recently sold {titleCase(flatType)} flats here
+      </h3>
+      {!town ? (
+        <p className="muted mt-2 text-xs">
+          This spot isn&rsquo;t attributed to a town, so there is no price data to pick from.
+        </p>
+      ) : loading ? (
+        <p className="muted mt-2 text-xs">Looking up recent sales…</p>
+      ) : error ? (
+        <p className="muted mt-2 text-xs">{error}</p>
+      ) : items.length === 0 ? (
+        <p className="muted mt-2 text-xs">
+          No recent {titleCase(flatType)} sales recorded for {titleCase(town)}.
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {items.map((p) => (
+            <li key={`${p.block}-${p.street}`}>
+              <Link
+                href={pickHref(p)}
+                className="flex items-baseline justify-between gap-2 rounded-lg px-2 py-1.5 -mx-2 text-xs transition-colors hover:bg-[var(--surface-2)]"
+              >
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {titleCase(p.address)}
+                </span>
+                <span className="muted shrink-0 tabular-nums">
+                  {money(p.price)} · {monthLabel(p.month)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
