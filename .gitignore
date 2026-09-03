@@ -12,3 +12,4 @@ next-env.d.ts
 # Output of `npm run seed` — large, regenerable, and owned by data.gov.sg.
 /data/amenities/*.json
 !/data/amenities/.gitkeep
+/data/towns.json

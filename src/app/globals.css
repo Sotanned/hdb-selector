@@ -155,3 +155,34 @@ body {
 input[type="range"] {
   accent-color: var(--color-accent-600);
 }
+
+/* Leaflet ships its own opinions about colour and stacking. Contain both: the
+   map lives in its own stacking context so its panes cannot rise above the
+   sticky header, and its chrome follows the app's theme. */
+.leaflet-container {
+  background: var(--surface-2);
+  font-family: var(--font-sans);
+  isolation: isolate;
+  z-index: 0;
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.leaflet-control-attribution a {
+  color: var(--text-muted);
+}
+
+.leaflet-bar a {
+  background: var(--surface);
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+
+.leaflet-bar a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}

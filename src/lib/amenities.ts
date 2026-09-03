@@ -2,7 +2,10 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { cached, HOUR } from "./cache";
 import { nearest, withinRadius, type LatLng } from "./geo";
+import { CATEGORY_LABELS } from "./types";
 import type { Amenity, AmenityCategory, NearbyAmenity } from "./types";
+
+export { CATEGORY_LABELS };
 
 export const AMENITY_DIR = path.join(process.cwd(), "data", "amenities");
 
@@ -13,20 +16,6 @@ export type AmenityFile = {
   sourceUrl?: string;
   fetchedAt: string;
   points: Amenity[];
-};
-
-export const CATEGORY_LABELS: Record<AmenityCategory, string> = {
-  mrt: "MRT / LRT stations",
-  busStop: "Bus stops",
-  school: "Schools",
-  preschool: "Preschools & kindergartens",
-  hawker: "Hawker centres",
-  supermarket: "Supermarkets",
-  clinic: "Clinics",
-  mall: "Shopping malls",
-  park: "Parks",
-  sports: "Sports facilities",
-  dengue: "Active dengue clusters",
 };
 
 /**

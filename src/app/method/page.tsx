@@ -120,6 +120,25 @@ export default function MethodPage() {
       </section>
 
       <section>
+        <h2 className="text-lg font-semibold">The map</h2>
+        <p className="muted mt-1 text-sm leading-relaxed">
+          The map divides Singapore into 400 m squares and scores each one on the same six
+          pillars, using the same functions as a single block&rsquo;s report — so the two can
+          never drift apart. A square is drawn only if it has a bus stop within 700 m, which
+          is what keeps the map to inhabited land without needing a coastline dataset.
+        </p>
+        <p className="muted mt-2 text-sm leading-relaxed">
+          Two things work differently there. The financial pillar is <strong>town-level</strong>,
+          not block-level: a square is attributed to its nearest town centre and scored on
+          that town&rsquo;s median price for the chosen flat type against the island median.
+          It has no lease component, because a square has no lease. And the shading is by{" "}
+          <strong>percentile</strong> rather than absolute score — a weighted fit score has no
+          natural zero, and absolute bands would paint the whole island one colour for anyone
+          with balanced priorities. The tooltip always shows the raw score.
+        </p>
+      </section>
+
+      <section>
         <h2 className="text-lg font-semibold">Money</h2>
         <p className="muted mt-1 text-sm leading-relaxed">
           The affordability calculator sizes a loan against the Mortgage Servicing Ratio

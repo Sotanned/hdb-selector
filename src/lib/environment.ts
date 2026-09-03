@@ -64,6 +64,17 @@ export async function fetchAirQuality(point: LatLng): Promise<AirQuality> {
   };
 }
 
+/** The 24-hour PSI for every region at once — what the map needs. */
+export async function fetchAllPsi(): Promise<Record<string, number | null>> {
+  const body = await cached("nea:psi", 10 * MINUTE, () =>
+    fetchJson<PsiV2>(`${V2}/psi`, { source: "NEA PSI" }),
+  );
+  const readings = body.data?.items?.at(-1)?.readings?.psi_twenty_four_hourly ?? {};
+  return Object.fromEntries(
+    PSI_REGIONS.map((r) => [r.name, readings[r.name] ?? null]),
+  );
+}
+
 export function psiBand(psi: number): { label: string; verdict: "good" | "ok" | "poor" } {
   if (psi <= 50) return { label: "Good", verdict: "good" };
   if (psi <= 100) return { label: "Moderate", verdict: "ok" };

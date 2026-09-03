@@ -38,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </span>
               </Link>
               <NavLink href="/">Search</NavLink>
+              <NavLink href="/map">Map</NavLink>
               <NavLink href="/compare">Shortlist</NavLink>
               <NavLink href="/method">Method</NavLink>
             </div>

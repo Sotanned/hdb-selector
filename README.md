@@ -2,10 +2,17 @@
 
 A decision portal for people buying a resale or BTO flat in Singapore.
 
-You give it an address and tell it what your household cares about. It scores
-the block on six pillars — price, getting around, schools, daily living, sport
-and green space, environment — from Singapore's open government data, weights
-them the way you asked, and lets you shortlist and compare candidates.
+It works in two directions.
+
+**You know the address.** Enter a block and get a report scoring it on six
+pillars — price, getting around, schools, daily living, sport and green space,
+environment — from Singapore's open government data, weighted the way your
+household actually cares about, with a shortlist to compare candidates.
+
+**You don't know where to look.** The map scores every inhabited 400 m square in
+Singapore on the same six pillars and shades the island by how well each area
+matches your weighting. Drag a slider and it repaints — a family chasing a P1
+place and a couple who want a 6-minute walk to the MRT see different maps.
 
 ## Why it exists
 
@@ -48,11 +55,16 @@ src/lib/          the data layer — one module per concern
   onemap.ts         address search, routing, reverse geocoding
   environment.ts    NEA real-time PSI, rainfall, two-hour forecast
   amenities.ts      seeded point datasets + radius/nearest queries
+  spatial.ts        uniform-grid spatial hash, for the island-wide sweep
   resale.ts         transaction parsing, medians, quartiles, year-on-year
   hdb.ts            block facts and town resolution
+  towns.ts          town centres and the per-town price table
   affordability.ts  MSR/TDSR, LTV, stamp duty, grant estimates
   scoring.ts        the six pillar scores and the weighted fit score
   report.ts         orchestrates all of the above for one address
+  mapGrid.ts        the same scoring, swept across every 400 m square
+  mapTypes.ts       the /api/map wire contract, shared with the browser
+  mapPalette.ts     the sequential ramp and its percentile bands
 src/app/          Next.js App Router pages and API routes
 src/components/   UI
 scripts/          the seed script and its dataset configuration
@@ -73,7 +85,17 @@ The fit score is therefore computed client-side.
 **The judgement calls are in one file.** Every scoring threshold — how much a
 10-minute walk to the MRT is worth, where the lease-decay curve falls off — lives
 in `src/lib/scoring.ts` with a comment saying why. They are opinions, and they
-are meant to be argued with.
+are meant to be argued with. The map calls those same functions rather than
+reimplementing them, so a threshold change moves the map and the report together.
+
+### How the map performs
+
+Scoring ~3,000 squares against a dozen datasets is ~10^8 distance tests done
+naively. `spatial.ts` buckets each dataset into 1 km cells so a radius query only
+visits the buckets it touches; the full island sweep then takes well under a
+second, is cached against the seed files' mtimes, and ships to the browser as
+~125 KB of columnar tuples. Re-weighting happens entirely client-side, so moving
+a slider repaints without another request.
 
 ## Data sources
 
@@ -108,5 +130,10 @@ caveats, and how every pillar score is derived.
   tells you exactly what to change.
 - **No URA Master Plan or upcoming-MRT data yet.** Announced changes to an area
   are not reflected.
+- **On the map, the financial pillar is town-level**, not square-level: a square
+  takes its nearest town centre's median price. Town attribution is
+  nearest-centre, which approximates real town boundaries.
+- **Map shading is by percentile**, not absolute score, so an area being dark
+  means "better than most of Singapore for you", not "good in absolute terms".
 
 This is a research tool, not financial, legal or property advice.

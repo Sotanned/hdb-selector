@@ -81,6 +81,20 @@ export type AmenityCategory =
 
 export type NearbyAmenity = Amenity & { distanceM: number; walkMin: number };
 
+export const CATEGORY_LABELS: Record<AmenityCategory, string> = {
+  mrt: "MRT / LRT stations",
+  busStop: "Bus stops",
+  school: "Schools",
+  preschool: "Preschools & kindergartens",
+  hawker: "Hawker centres",
+  supermarket: "Supermarkets",
+  clinic: "Clinics",
+  mall: "Shopping malls",
+  park: "Parks",
+  sports: "Sports facilities",
+  dengue: "Active dengue clusters",
+};
+
 export type ResaleTransaction = {
   month: string;
   town: string;

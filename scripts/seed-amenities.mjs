@@ -16,6 +16,7 @@ const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, "data", "amenities");
 const RAW_DIR = path.join(ROOT, "data", "raw");
 const CONFIG = path.join(ROOT, "scripts", "datasets.json");
+const TOWNS_FILE = path.join(ROOT, "data", "towns.json");
 
 const args = new Set(process.argv.slice(2));
 const only = process.argv
@@ -275,6 +276,49 @@ async function seedGeojsonDataset(cfg) {
   return geojsonToPoints(geojson, cfg.category);
 }
 
+/**
+ * HDB town centres, for attributing map grid cells to a town. Uses OneMap's
+ * open search endpoint, so this one needs no credentials at all — which makes
+ * it the only source that always works out of the box.
+ */
+async function seedOneMapTowns(cfg) {
+  const towns = [
+    "ANG MO KIO", "BEDOK", "BISHAN", "BUKIT BATOK", "BUKIT MERAH",
+    "BUKIT PANJANG", "BUKIT TIMAH", "CENTRAL AREA", "CHOA CHU KANG",
+    "CLEMENTI", "GEYLANG", "HOUGANG", "JURONG EAST", "JURONG WEST",
+    "KALLANG/WHAMPOA", "MARINE PARADE", "PASIR RIS", "PUNGGOL",
+    "QUEENSTOWN", "SEMBAWANG", "SENGKANG", "SERANGOON", "TAMPINES",
+    "TENGAH", "TOA PAYOH", "WOODLANDS", "YISHUN",
+  ];
+
+  const out = [];
+  const failed = [];
+  for (const town of towns) {
+    // "KALLANG/WHAMPOA" is an HDB administrative pairing, not a place name.
+    const query = town.split("/")[0];
+    try {
+      const body = await getJson(
+        `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(query)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`,
+      );
+      const hit = (body?.results ?? []).find(
+        (r) => Number.isFinite(Number(r.LATITUDE)) && Number.isFinite(Number(r.LONGITUDE)),
+      );
+      if (!hit) {
+        failed.push(town);
+        continue;
+      }
+      out.push({ name: town, lat: Number(hit.LATITUDE), lng: Number(hit.LONGITUDE) });
+    } catch {
+      failed.push(town);
+    }
+    await sleep(150);
+  }
+
+  if (failed.length) warn(`could not locate: ${failed.join(", ")}`);
+  if (out.length < 5) throw new Error("too few towns located to build a usable map");
+  return out;
+}
+
 async function seedLocalGeojson(cfg) {
   const file = path.join(RAW_DIR, cfg.file);
   const geojson = JSON.parse(await readFile(file, "utf8"));
@@ -282,6 +326,7 @@ async function seedLocalGeojson(cfg) {
 }
 
 const HANDLERS = {
+  "onemap-towns": seedOneMapTowns,
   "lta-datamall": seedLtaDatamall,
   "onemap-theme": seedOneMapTheme,
   "ckan-postal": seedCkanPostal,
@@ -294,6 +339,7 @@ const HANDLERS = {
 async function main() {
   const config = JSON.parse(await readFile(CONFIG, "utf8"));
   await mkdir(OUT_DIR, { recursive: true });
+  await mkdir(path.join(ROOT, "data"), { recursive: true });
 
   const sources = config.sources.filter((s) => !only || only.includes(s.category));
   if (sources.length === 0) {
@@ -314,18 +360,29 @@ async function main() {
     }
     try {
       const points = await handler(cfg);
-      const payload = {
-        category: cfg.category,
-        source: cfg.source,
-        sourceUrl: cfg.sourceUrl,
-        fetchedAt: new Date().toISOString(),
-        points,
-      };
+
+      // Town centres are not an amenity layer — they live beside them.
+      const isTowns = cfg.kind === "onemap-towns";
+      const payload = isTowns
+        ? {
+            source: cfg.source,
+            sourceUrl: cfg.sourceUrl,
+            fetchedAt: new Date().toISOString(),
+            towns: points,
+          }
+        : {
+            category: cfg.category,
+            source: cfg.source,
+            sourceUrl: cfg.sourceUrl,
+            fetchedAt: new Date().toISOString(),
+            points,
+          };
+
       await writeFile(
-        path.join(OUT_DIR, `${cfg.category}.json`),
+        isTowns ? TOWNS_FILE : path.join(OUT_DIR, `${cfg.category}.json`),
         JSON.stringify(payload, null, args.has("--pretty") ? 2 : 0),
       );
-      log(`  ✓ ${points.length} points written`);
+      log(`  ✓ ${points.length} ${isTowns ? "towns" : "points"} written`);
       succeeded.push(cfg.category);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
