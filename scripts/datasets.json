@@ -53,28 +53,27 @@
     },
     {
       "category": "mrt",
-      "kind": "onemap-theme",
-      "themeName": "trainstation",
-      "fallbackDatasetId": null,
-      "source": "OneMap \u2014 Train Stations",
-      "sourceUrl": "https://www.onemap.gov.sg/",
-      "verified": false
+      "kind": "geojson-dataset",
+      "datasetId": "d_b39d3a0871985372d7e1637193335da5",
+      "source": "LTA \u2014 MRT Station Exit",
+      "sourceUrl": "https://data.gov.sg/datasets/d_b39d3a0871985372d7e1637193335da5/view",
+      "verified": true
     },
     {
       "category": "preschool",
-      "kind": "onemap-theme",
-      "themeName": "preschools_location",
-      "source": "OneMap \u2014 Preschools",
-      "sourceUrl": "https://www.onemap.gov.sg/",
-      "verified": false
+      "kind": "geojson-dataset",
+      "datasetId": "d_61eefab99958fd70e6aab17320a71f1c",
+      "source": "ECDA \u2014 Pre-Schools Location",
+      "sourceUrl": "https://data.gov.sg/datasets/d_61eefab99958fd70e6aab17320a71f1c/view",
+      "verified": true
     },
     {
       "category": "hawker",
-      "kind": "onemap-theme",
-      "themeName": "hawkercentre",
-      "source": "OneMap / NEA \u2014 Hawker Centres",
-      "sourceUrl": "https://www.onemap.gov.sg/",
-      "verified": false
+      "kind": "geojson-dataset",
+      "datasetId": "d_4a086da0a5553be1d89383cd90d07ecd",
+      "source": "NEA \u2014 Hawker Centres",
+      "sourceUrl": "https://data.gov.sg/datasets/d_4a086da0a5553be1d89383cd90d07ecd/view",
+      "verified": true
     },
     {
       "category": "supermarket",
@@ -86,11 +85,11 @@
     },
     {
       "category": "clinic",
-      "kind": "onemap-theme",
-      "themeName": "chas_clinics",
-      "source": "OneMap / MOH \u2014 CHAS Clinics",
-      "sourceUrl": "https://www.onemap.gov.sg/",
-      "verified": false
+      "kind": "geojson-dataset",
+      "datasetId": "d_548c33ea2d99e29ec63a7cc9edcccedc",
+      "source": "MOH \u2014 CHAS Clinics",
+      "sourceUrl": "https://data.gov.sg/datasets/d_548c33ea2d99e29ec63a7cc9edcccedc/view",
+      "verified": true
     },
     {
       "category": "mall",
