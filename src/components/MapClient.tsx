@@ -44,25 +44,38 @@ function fitOf(cell: GridCellTuple, weights: Weights): number | null {
 export function MapClient() {
   const { weights, setWeights, reset, ready } = useWeights();
   const [flatType, setFlatType] = useState("4 ROOM");
-  const [grid, setGrid] = useState<MapGrid | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [selected, setSelected] = useState<MapCell | null>(null);
 
+  // One piece of state keyed by the request it answers. `loading` is then
+  // derived rather than toggled, so the effect never writes state synchronously.
+  const [result, setResult] = useState<{
+    key: string;
+    grid: MapGrid | null;
+    error: string | null;
+  }>({ key: "", grid: null, error: null });
+
+  const loading = result.key !== flatType;
+  const grid = result.key === flatType ? result.grid : null;
+  const error = result.key === flatType ? result.error : null;
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     fetch(`/api/map?flatType=${encodeURIComponent(flatType)}`)
       .then(async (r) => {
         const body = await r.json();
         if (cancelled) return;
-        if (!r.ok) setError(body.error ?? "Could not build the map.");
-        else setGrid(body as MapGrid);
+        setResult(
+          r.ok
+            ? { key: flatType, grid: body as MapGrid, error: null }
+            : { key: flatType, grid: null, error: body.error ?? "Could not build the map." },
+        );
       })
-      .catch(() => !cancelled && setError("Could not reach the server."))
-      .finally(() => !cancelled && setLoading(false));
+      .catch(() => {
+        if (!cancelled) {
+          setResult({ key: flatType, grid: null, error: "Could not reach the server." });
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -146,7 +159,7 @@ export function MapClient() {
         </div>
 
         <div className="relative h-[30rem] overflow-hidden rounded-xl border border-[var(--border)] sm:h-[42rem] lg:h-[48rem]">
-          {loading && !grid ? (
+          {loading ? (
             <div className="grid h-full place-items-center">
               <div className="text-center">
                 <p className="text-sm font-medium">Scoring every neighbourhood…</p>

@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import type { AddressResult } from "@/lib/onemap";
 import { titleCase } from "@/lib/format";
 
+/** Stable empty array, so the derived `results` identity does not churn. */
+const EMPTY: AddressResult[] = [];
+
 export function reportHref(r: AddressResult): string {
   const p = new URLSearchParams({
     lat: String(r.lat),
@@ -20,21 +23,23 @@ export function reportHref(r: AddressResult): string {
 export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
   const router = useRouter();
   const [term, setTerm] = useState("");
-  const [results, setResults] = useState<AddressResult[]>([]);
+  const [fetched, setFetched] = useState<AddressResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
 
+  // A term this short cannot have results, so that is derived rather than
+  // written back into state when the user deletes what they typed.
+  const tooShort = term.trim().length < 2;
+  const results = tooShort ? EMPTY : fetched;
+
   // Debounce so a fast typist makes one request, not eight.
   useEffect(() => {
     const q = term.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setError(null);
-      return;
-    }
+    if (q.length < 2) return;
+
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
@@ -43,7 +48,7 @@ export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
           signal: controller.signal,
         });
         const body = (await res.json()) as { results: AddressResult[]; error?: string };
-        setResults(body.results ?? []);
+        setFetched(body.results ?? []);
         setError(body.error ?? null);
         setOpen(true);
         setCursor(-1);
@@ -91,11 +96,11 @@ export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
 
   const hint = useMemo(() => {
     if (loading) return "Searching…";
-    if (error) return error;
+    if (error && !tooShort) return error;
     if (term.trim().length >= 2 && results.length === 0 && !loading)
       return "No matching address.";
     return null;
-  }, [loading, error, term, results.length]);
+  }, [loading, error, term, results.length, tooShort]);
 
   return (
     <div ref={boxRef} className="relative">
@@ -104,7 +109,6 @@ export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
       </label>
       <input
         id="address-search"
-        // eslint-disable-next-line jsx-a11y/no-autofocus
         autoFocus={autoFocus}
         className="field !py-3 !text-base"
         placeholder="Block, street or postal code — try 'Ang Mo Kio Ave 3' or '560123'"

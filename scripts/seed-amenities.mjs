@@ -281,7 +281,7 @@ async function seedGeojsonDataset(cfg) {
  * open search endpoint, so this one needs no credentials at all — which makes
  * it the only source that always works out of the box.
  */
-async function seedOneMapTowns(cfg) {
+async function seedOneMapTowns() {
   const towns = [
     "ANG MO KIO", "BEDOK", "BISHAN", "BUKIT BATOK", "BUKIT MERAH",
     "BUKIT PANJANG", "BUKIT TIMAH", "CENTRAL AREA", "CHOA CHU KANG",

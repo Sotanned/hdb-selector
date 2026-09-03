@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { DEFAULT_WEIGHTS, type Weights } from "./types";
 
 const WEIGHTS_KEY = "hdb-selector:weights:v1";
@@ -21,25 +21,92 @@ export function entryId(e: { lat: number; lng: number }): string {
   return `${e.lat.toFixed(5)},${e.lng.toFixed(5)}`;
 }
 
-function read<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? ({ ...fallback, ...JSON.parse(raw) } as T) : fallback;
-  } catch {
-    return fallback;
-  }
+/**
+ * A `localStorage` key exposed as an external store.
+ *
+ * These values are genuinely external to React — another tab can change them,
+ * and they do not exist during server rendering — so they belong in
+ * `useSyncExternalStore` rather than in an effect that writes state on mount.
+ * That gets hydration right by construction and gives cross-tab sync for free.
+ *
+ * Snapshots are the raw string, which is referentially stable, so React can
+ * compare them cheaply; callers parse with a memo.
+ */
+function createLocalStore(key: string) {
+  const listeners = new Set<() => void>();
+
+  // Mirrors localStorage so getSnapshot never re-reads (and never returns a
+  // fresh object), which is what useSyncExternalStore requires.
+  let cache: string | null = null;
+  let primed = false;
+
+  const read = (): string | null => {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      // Private browsing, or storage disabled entirely.
+      return null;
+    }
+  };
+
+  const notify = () => listeners.forEach((l) => l());
+
+  return {
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      const onStorage = (e: StorageEvent) => {
+        if (e.key !== key) return;
+        cache = read();
+        notify();
+      };
+      window.addEventListener("storage", onStorage);
+      return () => {
+        listeners.delete(listener);
+        window.removeEventListener("storage", onStorage);
+      };
+    },
+
+    getSnapshot(): string | null {
+      if (!primed) {
+        cache = read();
+        primed = true;
+      }
+      return cache;
+    },
+
+    /** Nothing is stored on the server, so hydration starts from the default. */
+    getServerSnapshot(): string | null {
+      return null;
+    },
+
+    write(value: unknown) {
+      const raw = JSON.stringify(value);
+      cache = raw;
+      primed = true;
+      try {
+        window.localStorage.setItem(key, raw);
+      } catch {
+        // Not persisting is harmless — the value is still live in this session.
+      }
+      notify();
+    },
+  };
 }
 
-function readArray<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(key);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch {
-    return [];
-  }
+const weightsStore = createLocalStore(WEIGHTS_KEY);
+const shortlistStore = createLocalStore(SHORTLIST_KEY);
+
+/**
+ * True once the browser has taken over from the server-rendered markup.
+ * Components use it to avoid flashing default state before the stored value
+ * is available.
+ */
+export function useHydrated(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 }
 
 /**
@@ -47,69 +114,59 @@ function readArray<T>(key: string): T[] {
  * shortlist is sent anywhere — it never needs to be, so it isn't.
  */
 export function useWeights() {
-  const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS);
-  const [ready, setReady] = useState(false);
+  const raw = useSyncExternalStore(
+    weightsStore.subscribe,
+    weightsStore.getSnapshot,
+    weightsStore.getServerSnapshot,
+  );
 
-  useEffect(() => {
-    setWeights(read(WEIGHTS_KEY, DEFAULT_WEIGHTS));
-    setReady(true);
-  }, []);
-
-  const update = useCallback((next: Weights) => {
-    setWeights(next);
+  const weights = useMemo<Weights>(() => {
+    if (!raw) return DEFAULT_WEIGHTS;
     try {
-      window.localStorage.setItem(WEIGHTS_KEY, JSON.stringify(next));
+      return { ...DEFAULT_WEIGHTS, ...(JSON.parse(raw) as Partial<Weights>) };
     } catch {
-      // Private browsing or a full quota — preferences just won't persist.
+      return DEFAULT_WEIGHTS;
     }
-  }, []);
+  }, [raw]);
 
-  const reset = useCallback(() => update(DEFAULT_WEIGHTS), [update]);
+  const setWeights = useCallback((next: Weights) => weightsStore.write(next), []);
+  const reset = useCallback(() => weightsStore.write(DEFAULT_WEIGHTS), []);
 
-  return { weights, setWeights: update, reset, ready };
+  return { weights, setWeights, reset, ready: useHydrated() };
 }
 
 export function useShortlist() {
-  const [items, setItems] = useState<ShortlistEntry[]>([]);
-  const [ready, setReady] = useState(false);
+  const raw = useSyncExternalStore(
+    shortlistStore.subscribe,
+    shortlistStore.getSnapshot,
+    shortlistStore.getServerSnapshot,
+  );
 
-  const sync = useCallback(() => setItems(readArray<ShortlistEntry>(SHORTLIST_KEY)), []);
-
-  useEffect(() => {
-    sync();
-    setReady(true);
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === SHORTLIST_KEY) sync();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [sync]);
-
-  const persist = useCallback((next: ShortlistEntry[]) => {
-    setItems(next);
+  const items = useMemo<ShortlistEntry[]>(() => {
+    if (!raw) return [];
     try {
-      window.localStorage.setItem(SHORTLIST_KEY, JSON.stringify(next));
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as ShortlistEntry[]) : [];
     } catch {
-      // Ignore: the shortlist is a convenience, not the source of truth.
+      return [];
     }
-  }, []);
+  }, [raw]);
 
   const add = useCallback(
     (entry: Omit<ShortlistEntry, "id" | "addedAt">) => {
       const id = entryId(entry);
-      const current = readArray<ShortlistEntry>(SHORTLIST_KEY);
-      if (current.some((e) => e.id === id)) return;
-      persist([...current, { ...entry, id, addedAt: new Date().toISOString() }]);
+      if (items.some((e) => e.id === id)) return;
+      shortlistStore.write([...items, { ...entry, id, addedAt: new Date().toISOString() }]);
     },
-    [persist],
+    [items],
   );
 
   const remove = useCallback(
-    (id: string) => persist(readArray<ShortlistEntry>(SHORTLIST_KEY).filter((e) => e.id !== id)),
-    [persist],
+    (id: string) => shortlistStore.write(items.filter((e) => e.id !== id)),
+    [items],
   );
 
   const has = useCallback((id: string) => items.some((e) => e.id === id), [items]);
 
-  return { items, add, remove, has, ready };
+  return { items, add, remove, has, ready: useHydrated() };
 }

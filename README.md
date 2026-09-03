@@ -111,6 +111,20 @@ a slider repaints without another request.
 The `/method` page in the app documents what each dataset is used for, its
 caveats, and how every pillar score is derived.
 
+## Dependencies
+
+Next 16 (Node 20.9+), React 19, Tailwind 4, Leaflet for the map. `npm audit`
+reports clean.
+
+One pin is deliberate: **ESLint stays on 9.x**. ESLint 10 is out, and npm warns
+that 9.x is on maintenance support, but `eslint-config-next` still bundles
+`eslint-plugin-react@7.37.5`, which caps at ESLint 9 and throws on 10's rule
+context API. That warning is a support-lifecycle notice, not a vulnerability.
+Revisit once `eslint-plugin-react` ships ESLint 10 support.
+
+Linting runs as `npm run lint` (`eslint .` against `eslint.config.mjs`) — Next 16
+removed the `next lint` command.
+
 ## Known limits
 
 - **Resale prices are historical, not a forecast**, are published a month or two

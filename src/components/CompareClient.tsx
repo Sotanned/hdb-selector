@@ -22,16 +22,20 @@ function reportUrl(e: ShortlistEntry): string {
 export function CompareClient() {
   const { items, remove, ready } = useShortlist();
   const { weights } = useWeights();
-  const [loaded, setLoaded] = useState<Loaded[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Keyed by the shortlist it belongs to, so a removed entry's report is
+  // discarded by derivation rather than by clearing state in an effect.
+  const shortlistKey = items.map((e) => e.id).join("|");
+  const [fetched, setFetched] = useState<{ key: string; reports: Loaded[] }>({
+    key: "",
+    reports: [],
+  });
+
+  const loaded = fetched.key === shortlistKey ? fetched.reports : [];
+  const loading = ready && items.length > 0 && loaded.length < items.length;
 
   useEffect(() => {
-    if (!ready || items.length === 0) {
-      setLoaded([]);
-      return;
-    }
+    if (!ready || items.length === 0) return;
     let cancelled = false;
-    setLoading(true);
 
     // Sequential rather than parallel: each report fans out to several
     // government APIs, and hammering them from one browser is a good way to get
@@ -51,15 +55,14 @@ export function CompareClient() {
           out.push({ entry, report: null, error: "Could not load" });
         }
         if (cancelled) return;
-        setLoaded([...out]);
+        setFetched({ key: shortlistKey, reports: [...out] });
       }
-      if (!cancelled) setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [items, ready]);
+  }, [items, ready, shortlistKey]);
 
   if (!ready) return null;
 

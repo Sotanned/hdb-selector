@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { bandOf, ramp } from "@/lib/mapPalette";
@@ -22,6 +22,24 @@ export type HoverInfo = { cell: MapCell; x: number; y: number };
  * rather than added as thousands of individual layers: recolouring on every
  * weight change then costs a single redraw instead of a style update per cell.
  */
+/**
+ * The OS colour scheme is external state, so it is subscribed to rather than
+ * mirrored into React state from an effect. The ramp's anchor flips with it.
+ */
+function usePrefersDark(): boolean {
+  const subscribe = useCallback((onChange: () => void) => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+    () => false,
+  );
+}
+
 export function FitMap({
   cells,
   thresholds,
@@ -41,17 +59,9 @@ export function FitMap({
   const leafletRef = useRef<typeof L | null>(null);
   const stateRef = useRef({ cells, thresholds, cellSizeM });
   const [ready, setReady] = useState(false);
-  const [dark, setDark] = useState(false);
+  const dark = usePrefersDark();
 
   stateRef.current = { cells, thresholds, cellSizeM };
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-color-scheme: dark)");
-    setDark(query.matches);
-    const onChange = (e: MediaQueryListEvent) => setDark(e.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
 
   // Leaflet touches `window` at import time, so it can only be loaded here.
   useEffect(() => {
