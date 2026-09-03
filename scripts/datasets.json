@@ -1,0 +1,113 @@
+{
+  "$comment": [
+    "Source configuration for `npm run seed`.",
+    "",
+    "Each entry writes data/amenities/<category>.json. Entries marked",
+    "\"verified\": false have a source identifier that has NOT been confirmed",
+    "against the live portal — if the seed reports one as failed, open the",
+    "dataset on data.gov.sg and paste the ID from its URL",
+    "(https://data.gov.sg/datasets/<id>/view) into \"datasetId\".",
+    "",
+    "kinds:",
+    "  lta-datamall   - LTA DataMall REST endpoint. Needs LTA_ACCOUNT_KEY.",
+    "  ckan-postal    - data.gov.sg datastore rows geocoded by postal code.",
+    "  onemap-theme   - OneMap Themes API. Needs ONEMAP_EMAIL / ONEMAP_PASSWORD.",
+    "  geojson-dataset- data.gov.sg dataset download (GeoJSON).",
+    "  local-geojson  - a .geojson file you downloaded yourself, under data/raw/."
+  ],
+  "sources": [
+    {
+      "category": "busStop",
+      "kind": "lta-datamall",
+      "endpoint": "https://datamall2.mytransport.sg/ltaodataservice/BusStops",
+      "source": "LTA DataMall — Bus Stops",
+      "sourceUrl": "https://datamall.lta.gov.sg/",
+      "verified": true
+    },
+    {
+      "category": "school",
+      "kind": "ckan-postal",
+      "resourceId": "d_688b934f82c1059ed0a6993d2a829089",
+      "nameField": "school_name",
+      "postalField": "postal_code",
+      "kindField": "mainlevel_code",
+      "metaFields": ["mainlevel_code", "type_code", "nature_code", "zone_code"],
+      "source": "MOE — School Directory and Information",
+      "sourceUrl": "https://data.gov.sg/datasets/d_688b934f82c1059ed0a6993d2a829089/view",
+      "verified": true
+    },
+    {
+      "category": "mrt",
+      "kind": "onemap-theme",
+      "themeName": "trainstation",
+      "fallbackDatasetId": null,
+      "source": "OneMap — Train Stations",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    },
+    {
+      "category": "preschool",
+      "kind": "onemap-theme",
+      "themeName": "preschools_location",
+      "source": "OneMap — Preschools",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    },
+    {
+      "category": "hawker",
+      "kind": "onemap-theme",
+      "themeName": "hawkercentre",
+      "source": "OneMap / NEA — Hawker Centres",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    },
+    {
+      "category": "supermarket",
+      "kind": "onemap-theme",
+      "themeName": "supermarkets",
+      "source": "OneMap / SFA — Supermarkets",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    },
+    {
+      "category": "clinic",
+      "kind": "onemap-theme",
+      "themeName": "chas_clinics",
+      "source": "OneMap / MOH — CHAS Clinics",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    },
+    {
+      "category": "mall",
+      "kind": "onemap-theme",
+      "themeName": "shoppingmall",
+      "source": "OneMap — Shopping Malls",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    },
+    {
+      "category": "park",
+      "kind": "onemap-theme",
+      "themeName": "nationalparks",
+      "source": "OneMap / NParks — Parks",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    },
+    {
+      "category": "sports",
+      "kind": "onemap-theme",
+      "themeName": "sportsg_sport_facilities",
+      "source": "OneMap / SportSG — Sports Facilities",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    },
+    {
+      "category": "dengue",
+      "kind": "onemap-theme",
+      "themeName": "dengue_cluster",
+      "source": "OneMap / NEA — Dengue Clusters",
+      "sourceUrl": "https://www.onemap.gov.sg/",
+      "verified": false
+    }
+  ]
+}
